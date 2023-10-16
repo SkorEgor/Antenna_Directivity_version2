@@ -3,6 +3,7 @@ from graph import Graph
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 # from mpl_toolkits.mplot3d.axes3d import Axes3D
 # from matplotlib.ticker import LinearLocator
+from matplotlib import cm
 
 import numpy as np
 
@@ -114,7 +115,7 @@ class Drawer:
         x, y = np.meshgrid(x, y)
 
         # Построение поверхности
-        graph.axis.plot_surface(x, y, data.field, cmap=graph.axis.cm.coolwarm,
+        graph.axis.plot_surface(x, y, data.field, cmap=cm.coolwarm,
                                 linewidth=0, antialiased=True)
 
         # Отрисовка (вызывается в конце)

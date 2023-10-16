@@ -3,9 +3,10 @@ import functools
 from PyQt5.QtWidgets import (
     QGridLayout,
     QPushButton,
-    QSizePolicy
+    QSizePolicy,
 )
 
+from PyQt5 import QtCore
 from data_and_processing import ButtonField, IntensityField
 from drawer import Drawer
 from graph import Graph
@@ -18,6 +19,11 @@ class GuiProgram(Ui_Dialog):
     def __init__(self, dialog):
         # Создаем окно
         Ui_Dialog.__init__(self)
+        dialog.setWindowFlags(  # Передаем флаги создания окна
+            QtCore.Qt.WindowCloseButtonHint |  # Кнопка закрытия
+            QtCore.Qt.WindowMaximizeButtonHint |  # Кнопка развернуть
+            QtCore.Qt.WindowMinimizeButtonHint  # Кнопка свернуть
+        )
         self.setupUi(dialog)  # Устанавливаем пользовательский интерфейс
 
         # ПОЛЯ КЛАССА
