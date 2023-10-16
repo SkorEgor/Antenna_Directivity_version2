@@ -1,24 +1,41 @@
-from data_and_processing import DataAndProcessing
-from gui import Ui_Dialog
-
-import numpy as np
 import functools
 
-from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import (
-    QApplication,
     QGridLayout,
     QPushButton,
-    QWidget, QSizePolicy
+    QSizePolicy
 )
+
+from data_and_processing import ButtonField, IntensityField
+from drawer import Drawer
+from graph import Graph
+from gui import Ui_Dialog
 
 
 # КЛАСС АЛГОРИТМА ПРИЛОЖЕНИЯ
 class GuiProgram(Ui_Dialog):
 
     def __init__(self, dialog):
+        # Создаем окно
+        Ui_Dialog.__init__(self)
+        self.setupUi(dialog)  # Устанавливаем пользовательский интерфейс
+
         # ПОЛЯ КЛАССА
-        self.data_and_processing = DataAndProcessing()
+        # Параметры 1 графика
+        self.graph_intensity_2d = Graph(
+            layout=self.layout_plot_2,
+            widget=self.widget_plot_2
+        )
+        # Параметры 2 графика
+        self.graph_intensity_3d = Graph(
+            layout=self.layout_plot_3,
+            widget=self.widget_plot_3,
+            tridimensional=True
+        )
+        # Данные нахождения антенн и интенсивности
+        self.data_button_field = ButtonField()
+        self.data_intensity_field = IntensityField()
+
         # Стиль кнопок
         self.text_color = "color: rgb(255, 255, 255);"
         self.empty_field_color = "background-color: rgb(33, 37, 43);"
@@ -26,50 +43,47 @@ class GuiProgram(Ui_Dialog):
         self.axis_color_y = "background-color: rgb(52, 163, 73);"
         self.antenna_color = "background-color: rgb(36, 78, 229);"
 
-        # Создаем слой QGridLayout под кнопки
+        # Слой QGridLayout под кнопки
         self.layout_button_field = QGridLayout()
 
         # ДЕЙСТВИЯ ПРИ ВКЛЮЧЕНИИ
-        # Создаем окно
-        Ui_Dialog.__init__(self)
-        self.setupUi(dialog)  # Устанавливаем пользовательский интерфейс
         self.pushButton_display_antenna_installation_field.clicked.connect(self.initialize_button_field)
+        self.pushButton_start_processing.clicked.connect(self.intensity_calculation)
 
+    # ( I ) ПОЛЕ КНОПОК ПОЛЯ КНОПОК УСТАНОВКИ АНТЕН
+    # (1) СОЗДАНИЕ
     def initialize_button_field(self):
         # Очищаем от старых кнопок
         self.delete_button_field()
 
-        # Получаем количество строк и столбцов
-        cells_radius_x = int(self.lineEdit_number_cells_x.text())
-        cells_radius_y = int(self.lineEdit_number_cells_y.text())
+        # Получаем количество ячеек на радиус
+        number_cells = int(self.lineEdit_number_cells_of_antenna_field.text())
 
-        # Находим значения области
-        radius_x = float(self.lineEdit_radius_x.text())
-        radius_y = float(self.lineEdit_radius_y.text())
+        # Находим значения радиуса
+        radius = float(self.lineEdit_radius_of_cells_of_antenna_field.text())
 
         # Сохраняем параметры, считаем матрицу антенн
-        self.data_and_processing = DataAndProcessing()
-        self.data_and_processing.field_initialization(cells_radius_x, cells_radius_y,
-                                                      radius_x, radius_y)
+        self.data_button_field = ButtonField()
+        self.data_button_field.field_initialization(number_cells, radius)
 
         size_policy = QSizePolicy(QSizePolicy.Expanding,
                                   QSizePolicy.Expanding)  # Установка размерной политики для кнопки
 
         # Проходим по ячейкам и задаем кнопки
-        for column in range(self.data_and_processing.cells_x):
-            for row in range(self.data_and_processing.cells_y):
+        for column in range(self.data_button_field.cells_side):
+            for row in range(self.data_button_field.cells_side):
                 # Создаем кнопку и задаем её текст (координата)
                 button = QPushButton(
-                    f""" x: {(self.data_and_processing.cells_radius_x - column) * self.data_and_processing.step_x}
-y: {(self.data_and_processing.cells_radius_y - row) * self.data_and_processing.step_y}""")
+                    f""" x: {(-self.data_button_field.cells_radius + column) * self.data_button_field.radius_step}
+y: {(self.data_button_field.cells_radius - row) * self.data_button_field.radius_step}""")
 
                 # Устанавливаем политику размера
                 button.setSizePolicy(size_policy)
 
                 # Устанавливаем стиль
-                if row == self.data_and_processing.cells_radius_y:
+                if row == self.data_button_field.cells_radius:
                     button.setStyleSheet(self.text_color + self.axis_color_x)
-                elif column == self.data_and_processing.cells_radius_x:
+                elif column == self.data_button_field.cells_radius:
                     button.setStyleSheet(self.text_color + self.axis_color_y)
                 else:
                     button.setStyleSheet(self.text_color + self.empty_field_color)
@@ -89,22 +103,54 @@ y: {(self.data_and_processing.cells_radius_y - row) * self.data_and_processing.s
         # Добавляем слой в виджет
         self.widget_plot_1.setLayout(self.layout_button_field)
 
+    # (2) ОЧИСТКА
     def delete_button_field(self):
         for i in reversed(range(self.layout_button_field.count())):
             self.layout_button_field.itemAt(i).widget().deleteLater()
 
+    # (3) ОБРАБОТКА НАЖАТИЯ КНОПКИ - УСТАНОВКА АНТЕНЫ
     def button_selection(self, row, column, button):
         # Меняем предыдущее значение на противоположное
-        self.data_and_processing.field[row][column] = not self.data_and_processing.field[row][column]
+        self.data_button_field.field[row][column] = not self.data_button_field.field[row][column]
         # Задаем цвет
         # Если ячейка с антенной - цвет антенны
-        if self.data_and_processing.field[row][column]:
+        if self.data_button_field.field[row][column]:
             button.setStyleSheet(self.text_color + self.antenna_color)
         # Иначе восстанавливаем исходный цвет
         else:
-            if row == self.data_and_processing.cells_radius_y:
+            # Строка посередине - ось x, закрашиваем особым цветом
+            if row == self.data_button_field.cells_radius:
                 button.setStyleSheet(self.text_color + self.axis_color_x)
-            elif column == self.data_and_processing.cells_radius_x:
+            # Колонка посередине - ось y, закрашиваем особым цветом
+            elif column == self.data_button_field.cells_radius:
                 button.setStyleSheet(self.text_color + self.axis_color_y)
+            # Закраска пустых ячеек
             else:
                 button.setStyleSheet(self.text_color + self.empty_field_color)
+
+    # ( II ) РАСЧЕТ ИНТЕНСИВНОСТИ
+    def intensity_calculation(self):
+        # Проверяем что поле кнопок создано
+        if self.data_button_field.field is None:
+            return
+
+        # Проверяем что антенны поставлены
+        if self.data_button_field.field.sum() == 0:
+            return
+
+        # Получаем количество ячеек на радиус
+        number_cells = int(self.lineEdit_number_cells_of_intensity.text())
+
+        # Находим значения радиуса
+        radius = float(self.lineEdit_radius_of_cells_of_intensity.text())
+
+        # Сохраняем параметры, считаем матрицу антенн
+        self.data_intensity_field = IntensityField()
+        self.data_intensity_field.field_initialization(number_cells, radius)
+
+        # Считаем интенсивность
+        self.data_intensity_field.intensity_calculation(self.data_button_field)
+
+        # Строим графики
+        Drawer.gray_2d(self.graph_intensity_2d, self.data_intensity_field)
+        Drawer.gray_3d(self.graph_intensity_3d, self.data_intensity_field)
